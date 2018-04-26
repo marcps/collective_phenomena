@@ -1,7 +1,26 @@
 /*Marc Pascual - Universitat de Barcelona 2018 - Fenòmens Col·lectius i transicions de fase*/
+/*###################################################################
+  # name: MC1-millorat.c                                            #
+  # date: 20/4/18                                                   #
+  #                                                                 #
+  ###################################################################
+  # programa que calcula promitjos de l'energia (E/N)(E²/N),i de la #
+  # magnetització i les escriu en un arxiu de resultats.            #
+  # La idea és que es corri el programa varies vegades per poder fer#
+  # un gràfic amb gnuplot per diferents temperatures.               #
+  #                                                                 #
+  #       A l'hora de calcular els promitjos fem varis trucs:       #
+  #		(1) No comptem varies dades inicials per donar temps#
+  #                 a que la matriu d'spins s'estabilitzi           #
+  #		(2) comptem cada 10 passes per evitar Correlacions  #
+  #                 També tenim en compte el temps de CPU.          #
+  ###################################################################*/
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
+#include <time.h>
+
 
 
 //calls the Fortran SUBROUTINE RCARIN(IJKL,RVEC,LENV)
@@ -53,15 +72,17 @@ int main(int argc, char const *argv[]){
 	scanf("%d",&mcd);
 
 	FILE *fp;
+	clock_t start,end;
+	double cpu_time_used;
 	int L,i,j,k,p,irand,count;
 	printf("[*]Longitud de la xarxa: L=");
 	scanf("%d",&L);
 	int nrand=mctot*3+24;
 	float rrand[nrand];
-	int pbc[L][2],S[L][L];
-	double ene,magn,suma,de,vexp[4],temp;
-	printf("[*]Temperatura: temp=");
-	scanf("%lf",&temp);
+	int pbc[L][2],S[L][L],itemp;
+	double ene,magn,suma,de,vexp[4],temp,ftemp;
+	printf("[*]Temperatura inicial: temp=");
+	scanf("%lf",&ftemp);
 
 	//VARIABLES PROMITJOS:
 	int sum=0;
@@ -77,108 +98,124 @@ int main(int argc, char const *argv[]){
 
 
 	// ------------------------------------------
-	fp=fopen("mc2-resultats.txt","w");
-//############################# MAIN LOOP NLLAV BEGINS #########################################
-	for(illav=nllav0;illav<nllav0+nllav;illav++)
+	fp=fopen("mc2-resultats.res","a");
+	//CLOCK
+	start = clock();
+	for(itemp=0;itemp<=20;itemp++)
 	{
-
-		//========= SPIN MATRIX DEFINITION ==========
-		rcarin_(&illav,rrand,&nrand);
-		rcarry_(rrand,&nrand);
-
-		irand=0;
-		for(i=0;i<L;i++)
+		temp=ftemp+(double)itemp*ftemp/4.;
+//############################# MAIN LOOP NLLAV BEGINS #########################################
+		for(illav=nllav0;illav<nllav0+nllav;illav++)
 		{
-			for(j=0;j<L;j++)
+			//========= SPIN MATRIX DEFINITION ==========
+			rcarin_(&illav,rrand,&nrand);//every time a new estocastic vector with new seed is ddefined
+			rcarry_(rrand,&nrand);
+
+			irand=0;
+			for(i=0;i<L;i++)
 			{
-				if(rrand[irand]<0.5)S[i][j]=1;
-				else S[i][j]= -1;
-				irand+=1;
+				for(j=0;j<L;j++)
+				{
+					if(rrand[irand]<0.5)S[i][j]=1;
+					else S[i][j]= -1;
+					irand+=1;
+				}
+			}
+			//==========================================
+
+			// ----- PBC DEFINITION --------------------
+			//The first column refers to the actual position
+			/*The second column refers to the previous position (0)
+			Or to the next (1)*/
+			pbc[0][0]=L-1;
+			pbc[0][1]=1;
+			pbc[L-1][0]=L-2;
+			pbc[L-1][1]=0;
+			for(i=1;i<L-1;i++)
+			{
+				//Trivial definition (but necessary)
+				pbc[i][0]=i-1; //previous position
+				pbc[i][1]=i+1; //Next position
+			}
+
+			ene=energy(L,S,pbc);
+			printf("Energia inicial E=%lf\n",ene);
+			//------------------------------------------
+			rcarry_(rrand,&nrand);
+			//Resetting counters
+			irand=0; //counter for the estocastic vector "rrand"
+			count=0; //counter for the average of physical prop (E,M)
+		//=========--- MAIN LOOP BEGINS ----===================
+			for(i=0;i<mctot;i++)
+			{
+				//This loop will test the change in energy of a change in spin
+				//And reject it or not according to "de":
+
+					//k,p are 2 randomly selected indexes of the spin matrix
+					k=round((L-1)*rrand[irand]);
+					irand++;
+					p=round((L-1)*rrand[irand]);
+					irand++;
+
+					suma=S[k][pbc[p][0]]+S[k][pbc[p][1]]+
+						S[pbc[k][0]][p]+S[pbc[k][1]][p];
+
+					de=2.*S[k][p]*suma;
+
+					if(de<0)S[k][p]=-S[k][p];
+					else
+					{
+						if(rrand[irand]<exp(-de/temp))
+						{
+							S[k][p]=-S[k][p];
+						}
+						//If not, the value is not accepted
+						irand++;
+					}
+
+					ene=energy(L,S,pbc);
+
+					//-=========== PROMITJOS ===============-:
+					if((count>mcini)&&(mcd*(count/mcd)==count)){
+						magn=magne(L,S);
+
+						sum++; //variable que compta quantes vegdes suma per fer el promig després
+						sume += ene;
+						sume2 += ene*ene;
+						summ += magn;
+						summ2 += magn*magn;
+						sumam += fabs(magn);
+					}
+					//=======================================
+					count++;
 			}
 		}
-		//==========================================
-
-		// ----- PBC DEFINITION --------------------
-		//The first column refers to the actual position
-		/*The second column refers to the previous position (0)
-		Or to the next (1)*/
-		pbc[0][0]=L-1;
-		pbc[0][1]=1;
-		pbc[L-1][0]=L-2;
-		pbc[L-1][1]=0;
-		for(i=1;i<L-1;i++)
-		{
-			//Trivial definition (but necessary)
-			pbc[i][0]=i-1; //previous position
-			pbc[i][1]=i+1; //Next position
-		}
-
-		ene=energy(L,S,pbc);
-		printf("Energia inicial E=%lf\n",ene);
-		//------------------------------------------
-		rcarry_(rrand,&nrand);
-		irand =0;
-		count=0;
-	//=========--- MAIN LOOP BEGINS ----===================
-		for(i=0;i<mctot;i++)
-		{
-			//This loop will test the change in energy of a change in spin
-			//And reject it or not according to de:
-
-				//k i p són els índex triats aleaoriament de la matriu d'spins
-				k=round((L-1)*rrand[irand]);
-				irand++;
-				p=round((L-1)*rrand[irand]);
-				irand++;
-
-				suma=S[k][pbc[p][0]]+S[k][pbc[p][1]]+
-					S[pbc[k][0]][p]+S[pbc[k][1]][p];
-
-				de=2.*S[k][p]*suma;
-
-				if(de<0)S[k][p]=-S[k][p];
-				else
-				{
-					if(rrand[irand]<exp(-de/temp))
-					{
-						S[k][p]=-S[k][p];
-					}
-					//If not, the value is not accepted
-					irand++;
-				}
-
-				ene=energy(L,S,pbc);
-
-				//-=========== PROMITJOS ===============-:
-				if((count>mcini)&&(mcd*(count/mcd)==count)){
-					magn=magne(L,S);
-
-					sum++;
-					sume += ene;
-					sume2 += ene*ene;
-					summ += magn;
-					summ2 += magn*magn;
-					sumam += fabs(magn);
-				}
-				//=======================================
-				count++;
-		}
-	}
 //######################### MAIN LOOP ENDS (NLLAV) ###################################################
 
-	// Normalització dels promitjos:
-	sume=sume/((double)sum);
-	sume2=sume2/((double)sum);
-	summ=summ/((double)sum);
-	summ2=summ2/((double)sum);
-	sumam=sumam/((double)sum);
+		// Completing the average calculation:
+		sume=sume/((double)sum);
+		sume2=sume2/((double)sum);
+		summ=summ/((double)sum);
+		summ2=summ2/((double)sum);
+		sumam=sumam/((double)sum);
 
-	vare=sume2-sume*sume;
-	varm=summ2-summ*summ;
-	printf("\n\n\nNumber of operations=%d \nE/N=%.2lf\nE^2/N=%.2lf\n"
-				"M/N= %.2lf\nM^2=%.2lf\nabs(M)/N=%.2lf\n\nVAR(E)=%.2lf\n"
-				"VAR(M)=%.2lf\n\n",
-				count,sume,sume2,summ,summ2,sumam,vare,varm);
+		vare=sume2-sume*sume;
+		varm=summ2-summ*summ;
+
+		end = clock();
+		cpu_time_used = ((double)(end-start))/CLOCKS_PER_SEC;
+		printf("\n----------------\n"
+						"CPU TIME: %.1lf s\n"
+						"-----------------\n",cpu_time_used);
+
+		printf("\n\n\nNumber of operations=%d \nE/N=%.2lf\nE^2/N=%.2lf\n"
+					"M/N= %.2lf\nM^2=%.2lf\nabs(M)/N=%.2lf\n\nVAR(E)=%.2lf\n"
+					"VAR(M)=%.2lf\n\n",
+					count,sume,sume2,summ,summ2,sumam,vare,varm);
+		//Escriurem els resultats a l'arxiu per després fer una gràfica
+		fprintf(fp,"%lf %lf %lf %lf %lf %lf %lf %lf\n"
+						,temp,sume,sume2,summ,summ2,sumam,vare,varm);
+	}
 
 	fclose(fp);
 	return 0;

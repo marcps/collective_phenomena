@@ -8,13 +8,12 @@
   # magnetització i les escriu en un arxiu de resultats.            #
   # La idea és que es corri el programa varies vegades per poder fer#
   # un gràfic amb gnuplot per diferents temperatures.               #
-
-	  A l'hora de calcular els promitjos fem varis trucs:
-		(1) No comptem varies dades inicials per donar temps a que la
-		    matriu d'spins s'estabilitzi
-		(2) comptem cada 10 passes per evitar Correlacions
-
-		També tenim en compte el temps de CPU.
+  #                                                                 #
+  #       A l'hora de calcular els promitjos fem varis trucs:       #
+  #		(1) No comptem varies dades inicials per donar temps#
+  #                 a que la matriu d'spins s'estabilitzi           #
+  #		(2) comptem cada 10 passes per evitar Correlacions  #
+  #                 També tenim en compte el temps de CPU.          #
   ###################################################################*/
 
 #include <stdlib.h>
