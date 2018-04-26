@@ -1,6 +1,6 @@
 /*Marc Pascual - Universitat de Barcelona 2018 - Fenòmens Col·lectius i transicions de fase*/
 /*###################################################################
-  # name: MC1-millorat.c                                            #
+  # name: MC2.c                                                     #
   # date: 20/4/18                                                   #
   #                                                                 #
   ###################################################################
