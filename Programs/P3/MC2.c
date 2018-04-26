@@ -15,14 +15,10 @@
   #		(2) comptem cada 10 passes per evitar Correlacions  #
   #                 També tenim en compte el temps de CPU.          #
   ###################################################################*/
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
 #include <time.h>
-
-
-
 //calls the Fortran SUBROUTINE RCARIN(IJKL,RVEC,LENV)
 //rcarin_(&seed,rrand,&nrand);
 //rcarry_(rrand,&nrand);
@@ -80,7 +76,7 @@ int main(int argc, char const *argv[]){
 	int nrand=mctot*3+24;
 	float rrand[nrand];
 	int pbc[L][2],S[L][L],itemp;
-	double ene,magn,suma,de,vexp[4],temp,ftemp;
+	double ene,magn,suma,de,vexp[4],temp,ftemp,epse,epsmcapv,capv_n,suscept,suscept_n;
 	printf("[*]Temperatura inicial: temp=");
 	scanf("%lf",&ftemp);
 
@@ -198,6 +194,13 @@ int main(int argc, char const *argv[]){
 		summ=summ/((double)sum);
 		summ2=summ2/((double)sum);
 		sumam=sumam/((double)sum);
+
+		epse=(1./(L*L))*sqrt((sume2-sume*sume)/(double)sum);
+		epsm=(1./(L*L))*sqrt((summ2-summ*summ)/sum);
+		capv=((sume2-sume*sume)/temp)*((sume2-sume*sume)/temp);
+		capv_n=capv/(L*L);
+		suscept=((summ2-summ*summ)/temp)*((summ2-summ*summ)/temp);
+		suscept_n=suscept/(L*L);
 
 		vare=sume2-sume*sume;
 		varm=summ2-summ*summ;
