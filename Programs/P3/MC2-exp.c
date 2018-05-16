@@ -12,8 +12,11 @@
   #       A l'hora de calcular els promitjos fem varis trucs:       #
   #		(1) No comptem varies dades inicials per donar temps#
   #                 a que la matriu d'spins s'estabilitzi           #
-  #		(2) comptem cada 10 passes per evitar Correlacions  #
+  #		(2) comptem cada 10 passes per evitar Correlacions          #
   #                 També tenim en compte el temps de CPU.          #
+  #
+  #     (3)IMPORTANT: El càlcul es fa per 200 temperatures en un
+  #                   interval de 0.01
   ###################################################################*/
 #include <stdlib.h>
 #include <stdio.h>
@@ -74,9 +77,9 @@ int main(int argc, char const *argv[]){
 	printf("[*]Longitud de la xarxa: L=");
 	scanf("%d",&L);
 	int nrand=L*L*4+24;
-	float rrand[nrand],deri_e;
-	int pbc[L][2],S[L][L],itemp;
-	double ene,magn,suma,de,vexp[4],temp,ftemp,epse,epsm,capv,capv_n,suscept,suscept_n;
+	float rrand[nrand];
+	int pbc[L][2],S[L][L],itemp,de,suma;
+	double ene,deri_e=0.,magn,vexp[5],temp,ftemp,epse,epsm,capv,capv_n,suscept,suscept_n;
 	printf("[*]Temperatura inicial: ftemp=");
 	scanf("%lf",&ftemp);
 
@@ -121,7 +124,12 @@ int main(int argc, char const *argv[]){
 //#############################################################################################
 	for(itemp=0;itemp<=200;itemp++)
 	{
+
 		temp=ftemp+(double)itemp/100; //temp=[ftemp,ftemp+2] amb passes de 0.01
+		for(i=0;i<5;i++){
+			//the exponential definition
+			vexp[i]=exp(-(4.*(double)i-8.)/temp);
+		}
 //############################# MAIN LOOP NLLAV BEGINS #########################################
 		for(illav=nllav0;illav<nllav0+nllav;illav++)
 		{
@@ -142,9 +150,6 @@ int main(int argc, char const *argv[]){
 			//---------------------------------------
 			ene=energy(L,S,pbc);
 			printf("Energia inicial E=%lf\n",ene);
-			//------------------------------------------
-			//Resetting counters
-			irand=0; //counter for the estocastic vector "rrand"
 
 		//=============--- Monte Carlo LOOP BEGINS ---===================
 			for(i=0;i<mctot;i++)
@@ -168,7 +173,7 @@ int main(int argc, char const *argv[]){
 					if(de<0)S[k][p]=-S[k][p];
 					else
 					{
-						if(rrand[irand+2]<exp(-de/temp))
+						if(rrand[irand+2]<vexp[de/4+2])
 						{
 							S[k][p]=-S[k][p];
 						}
@@ -201,6 +206,7 @@ int main(int argc, char const *argv[]){
 		// Completing the average calculation:
 		if(itemp!=0)
 		{
+			//Derivada de les temperatures
 			deri_e=(sume_1-sume/((double)sum*L*L))/0.01;
 		}
 		sume_1=sume/((double)sum*L*L);
@@ -220,7 +226,6 @@ int main(int argc, char const *argv[]){
 		suscept=varm/temp;
 		suscept_n=suscept/(L*L);
 
-
 		end = clock();
 		cpu_time_used = ((double)(end-start))/CLOCKS_PER_SEC;
 		printf("\n----------------\n"
@@ -234,7 +239,7 @@ int main(int argc, char const *argv[]){
 					count,sum,sume,sume2,summ,summ2,sumam,vare,varm);
 
 		//Escriurem els resultats a l'arxiu per després fer una gràfica
-		fprintf(fp,"%.6lf %lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf\n"
+		fprintf(fp,"%.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf %.6lf\n"
 						,temp,sume_1,deri_e,sume2,summ,summ2,sumam,vare,varm,capv,capv_n,suscept,suscept_n);
 
 		//Estadistic variables set to zero for the next temperature
