@@ -216,15 +216,15 @@ int main(int argc, char const *argv[]){
 		sumam=sumam/((double)sum*L*L);
 
 		vare=sume2-sume_1*sume_1;
-		varm=summ2-summ*summ;
+		varm=summ2-sumam*sumam;
 
 		epse=(1./(L*L))*sqrt(vare/(double)sum);
 		epsm=(1./(L*L))*sqrt(varm/(double)sum);
 
 		capv=vare/(temp*temp);//energy fluctuations
-		capv_n=capv/(L*L);
+		capv_n=capv*(L*L);
 		suscept=varm/temp;
-		suscept_n=suscept/(L*L);
+		suscept_n=suscept*(L*L);
 
 		end = clock();
 		cpu_time_used = ((double)(end-start))/CLOCKS_PER_SEC;
